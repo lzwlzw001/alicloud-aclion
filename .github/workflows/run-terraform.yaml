@@ -1,0 +1,81 @@
+name: 'Terraform Workflow'
+
+on:
+  workflow_call:
+    inputs:
+      alicloud-region:
+        required: false
+        type: string
+        description: "alicloud region"
+        default: "ap-southeast-1"
+      env:
+        required: true
+        type: string
+        description: "Environment (dev|stage|prod)"
+      apply:
+        required: false
+        type: boolean
+        description: "Boolean that sets if plan gets applied"
+        default: false
+      brand:
+        required: true
+        type: string
+        description: "brand"
+      application_name:
+        required: true
+        type: string
+        description: "application name"
+      index:
+        required: true
+        type: string
+        description: "oss index"
+      work-dir:
+        required: false
+        type: string
+        description: "Active Terraform working directory"
+    secrets:
+      alicloud_access_key_id_env:
+        required: true
+      alicloud_access_key_secret_env:
+        required: true
+
+jobs:
+  tf-job:
+    runs-on: ubuntu-latest
+    env:
+      WORK_DIRECTORY: ${{ (inputs.work-dir && format('{0}/{1}', inputs.work-dir, inputs.cloud)) || './terraform' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set authentication environment variables for Alicloud
+        run: | # Due to module provider requirements we're setting dummy values for alicloud provider initialization
+          echo "ALICLOUD_ACCESS_KEY=${{ secrets.alicloud_access_key_id_env || 'dummy-key' }}" >> $GITHUB_ENV
+          echo "ALICLOUD_SECRET_KEY=${{ secrets.alicloud_access_key_secret_env || 'dummy-secret' }}" >> $GITHUB_ENV
+          echo "ALICLOUD_REGION=${{ inputs.alicloud-region }}" >> $GITHUB_ENV
+
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Setup env config
+        id: env-config
+        uses: DFSSGPTELTD/alicloud-action/.github/actions/env-config@master
+        with:
+          env: ${{ inputs.env }}
+          brand: ${{ inputs.brand }}
+          application_name: ${{ inputs.application_name }}
+          index: ${{ inputs.index }}
+
+      - name: 'Terraform Init'
+        run: terraform init -reconfigure -upgrade -backend-config="bucket=${{ steps.env-config.outputs.OSS_NAME }}"
+        working-directory: ${{ env.WORK_DIRECTORY }}
+
+
+      - name: 'Terraform Plan'
+        run: pwd && terraform plan -var-file=./env/${{ inputs.env }}.tfvars
+        working-directory: ${{ env.WORK_DIRECTORY }}
+
+      - name: 'Terraform Apply'
+        if: ${{ inputs.apply }}
+        run: pwd && terraform apply -auto-approve -var-file=./env/${{ inputs.env }}.tfvars
+        working-directory: ${{ env.WORK_DIRECTORY }}
