@@ -1,0 +1,34 @@
+name: Deployment Workflow
+
+on:
+  push:
+    paths:
+      - '**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment on which to deploy (dev|stage|prod)"
+        type: string
+        required: false
+        default: dev
+      apply:
+        description: "terraform apply"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  tf-apply:
+    uses: ./.github/workflows/run-terraform.yaml
+    with:
+      # Sets environment on which we deploy when new commit is pushed to main branch.
+      env: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+      apply: ${{ inputs.apply  || false }}
+      brand: "dfs"
+      application_name: "oct"
+      index: "01"
+      work-dir: ./terraform
+    secrets:
+      alicloud_access_key_id_env: ${{ secrets.ALICLOUD_ACCESSKEY_ID }}
+      alicloud_access_key_secret_env: ${{ secrets.ALICLOUD_ACCESSKEY_SECRET }}
+
