@@ -1,0 +1,41 @@
+name: Env config setup
+description: env config setup
+
+inputs:
+  env:
+    required: true
+    description: "Environment"
+  provider:
+    required: false
+    description: "cloud provider, example:aliyun location"
+    default: "alsi"
+  brand:
+    required: true
+    description: "brand"
+  application_name:
+    required: true
+    description: "application name"
+  index:
+    required: true
+    description: "oss index"
+
+outputs:
+  OSS_NAME:
+    description: "oss name"
+    value: ${{ steps.env-config.outputs.OSS_NAME }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: env-config
+      shell: bash
+      run: |
+        # oss name: <Aliyun location><brand><Application name><Environment><Index>-oss
+        ENV_INPUTS=${{ inputs.env }}
+        PROVIDER_INPUTS=${{ inputs.provider }}
+        BRAND=${{ inputs.brand }}
+        APPLICATION_NAME_INPUTS=${{ inputs.application_name }}
+        INDEX_INPUTS=${{ inputs.index }}
+        OSS_NAME=$PROVIDER_INPUTS$BRAND$APPLICATION_NAME_INPUTS$ENV_INPUTS$INDEX_INPUTS-oss
+        
+        echo "OSS_NAME=$OSS_NAME" >> $GITHUB_OUTPUT
