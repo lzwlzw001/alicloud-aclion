@@ -1,1 +1,0 @@
-variable "k8s_key_pair_name" {}
